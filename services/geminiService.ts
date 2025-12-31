@@ -4,12 +4,11 @@ import { Toy } from "../types";
 
 /**
  * Gets toy recommendations based on child's age and interests using Gemini.
- * Now it specifically picks from the available toys in the shop.
  */
 export const getToyRecommendations = async (childAge: string, interests: string, availableToys: Toy[]) => {
+  // Initialize right before call to ensure valid environment access
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
   
-  // Prepare a condensed list of toys for the prompt to keep it efficient
   const toysList = availableToys.map(t => `- ${t.name} (ID: ${t.id}, Категорія: ${t.category}, Вік: ${t.ageRange})`).join('\n');
 
   const prompt = `Ти - кіт Леопольд, помічник у магазині іграшок. 

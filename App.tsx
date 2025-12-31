@@ -153,6 +153,7 @@ const App: React.FC = () => {
   };
 
   useEffect(() => {
+    // 1. Initial Data Loading from LocalStorage/Constants
     const savedToys = localStorage.getItem('leopold_toys');
     if (savedToys) setAllToys(JSON.parse(savedToys));
     else setAllToys(INITIAL_TOYS);
@@ -173,7 +174,7 @@ const App: React.FC = () => {
     const savedToyId = localStorage.getItem('leopold_toy_of_the_day_id');
     if (savedToyId) setToyOfTheDayId(savedToyId);
 
-    // Спробуємо синхронізуватись, але додаток завантажиться у будь-якому випадку
+    // 2. Async Sync with External Data
     syncWithGoogleSheet().catch(() => setIsLoading(false));
   }, []);
 
