@@ -23,6 +23,7 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
   const [interests, setInterests] = useState('');
   const [recommendations, setRecommendations] = useState<RecommendedToy[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [msgIndex, setMsgIndex] = useState(0);
   
   const modalRef = useRef<HTMLDivElement>(null);
@@ -39,7 +40,6 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
     return () => clearInterval(interval);
   }, [loading]);
 
-  // Закриття при кліку поза межами вікна (втрата фокусу) або натисканні Escape
   useEffect(() => {
     if (isOpen) {
       const handleClickOutside = (event: MouseEvent) => {
@@ -53,7 +53,7 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
       
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEsc);
-      document.body.style.overflow = 'hidden'; // Заборона скролу фону
+      document.body.style.overflow = 'hidden';
       
       return () => {
         document.removeEventListener('mousedown', handleClickOutside);
@@ -67,11 +67,17 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
     e.preventDefault();
     if (!age || !interests || toys.length === 0) return;
     setLoading(true);
+    setError(null);
     try {
       const result = await getToyRecommendations(age, interests, toys);
-      setRecommendations(result);
+      if (result && result.length > 0) {
+        setRecommendations(result);
+      } else {
+        setError("Вибачте, я не зміг знайти ідеальний варіант. Спробуйте ще раз!");
+      }
     } catch (err) {
       console.error(err);
+      setError("Ой! Сталася технічна помилка. Будь ласка, перевірте з'єднання.");
     } finally {
       setLoading(false);
     }
@@ -87,7 +93,6 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
 
   return (
     <>
-      {/* Статична картка в сітці (ніколи не змінює розмір і не зміщує контент) */}
       <section className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-[32px] px-6 py-8 text-white shadow-lg overflow-hidden relative border-4 border-white/10 flex flex-col justify-center h-full min-h-[220px]">
         <div className="absolute -right-6 -bottom-6 opacity-10 transform rotate-12 pointer-events-none">
           <span className="text-8xl sm:text-9xl">🐱</span>
@@ -111,14 +116,12 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
         </div>
       </section>
 
-      {/* Модальний оверлей (збільшується поверх інших вікон) */}
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-2 sm:p-4 bg-indigo-950/60 backdrop-blur-md animate-in fade-in duration-300">
           <div 
             ref={modalRef}
             className="bg-white rounded-[32px] sm:rounded-[40px] w-full max-w-xl shadow-2xl overflow-hidden border-4 sm:border-8 border-white animate-in zoom-in duration-300 relative"
           >
-            {/* Шапка модалки */}
             <div className="bg-gradient-to-r from-indigo-600 to-purple-700 p-4 sm:p-5 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
                 <div className="bg-yellow-400 w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-lg sm:text-xl shadow-inner">🐱</div>
@@ -137,7 +140,6 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
               </button>
             </div>
 
-            {/* Контент модалки - Оптимізовані відступи (p-3 для мобільних) */}
             <div className="p-3 sm:p-5 bg-gray-50">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-10 space-y-5">
@@ -153,6 +155,17 @@ const AIHelper: React.FC<AIHelperProps> = ({ toys, onSelectToy, isCompact }) => 
                     </p>
                     <p className="text-gray-400 text-xs font-bold italic">Заварюємо чай з ромашкою...</p>
                   </div>
+                </div>
+              ) : error ? (
+                <div className="text-center py-10 px-6">
+                   <div className="text-6xl mb-4">😿</div>
+                   <p className="text-red-500 font-black mb-6">{error}</p>
+                   <button 
+                    onClick={() => setError(null)}
+                    className="bg-indigo-600 text-white px-8 py-3 rounded-xl font-black shadow-lg"
+                   >
+                     Спробувати ще раз
+                   </button>
                 </div>
               ) : !recommendations.length ? (
                 <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">

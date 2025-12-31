@@ -144,16 +144,33 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleExportCSV = () => {
     if (toys.length === 0) return;
-    const headers = ['Найменування', 'Ціна', 'Оптова ціна', 'Категорія', 'Вік', 'Фото', 'Опис'];
+    // Заголовки, які 100% розуміє імпортер (App.tsx -> syncWithGoogleSheet)
+    const headers = ['Назва', 'Ціна', 'Знижка', 'Категорія', 'Вік', 'Фото', 'Опис'];
     const csvRows = [headers.join(',')];
+
     toys.forEach(toy => {
-      const row = [`"${toy.name}"`, toy.price, toy.discountPrice || '', `"${toy.category}"`, `"${toy.ageRange}"`, `"${toy.images.join(';')}"`, `"${toy.description}"`];
+      // Отримуємо назву категорії за її ID
+      const catName = categories.find(c => c.id === toy.category)?.name || toy.category;
+      
+      // Екрануємо лапки для безпечного CSV
+      const escape = (str: string) => `"${str.replace(/"/g, '""')}"`;
+
+      const row = [
+        escape(toy.name),
+        toy.price,
+        toy.discountPrice || '',
+        escape(catName),
+        escape(toy.ageRange),
+        escape(toy.images.join(';')),
+        escape(toy.description)
+      ];
       csvRows.push(row.join(','));
     });
+
     const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `inventory.csv`;
+    link.download = `toys_leopold_export.csv`;
     link.click();
   };
 
@@ -216,7 +233,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
       discountPrice: toy.discountPrice ? toy.discountPrice.toString() : '',
       category: toy.category,
       ageRange: toy.ageRange,
-      images: toy.images || [],
+      images: Array.isArray(toy.images) ? [...toy.images] : [DEFAULT_TOY_IMAGE],
       description: toy.description
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -434,10 +451,51 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 
                 <div className="bg-gray-50 p-4 sm:p-6 rounded-2xl border-2 border-gray-100">
                   <label className="block text-xs font-black text-gray-700 uppercase mb-4 ml-1">Фото (URL-посилання)</label>
-                  <div className="flex flex-col sm:flex-row gap-2 mb-4">
+                  <div className="flex flex-col sm:flex-row gap-2 mb-6">
                     <input type="text" value={tempImageUrl} onChange={(e) => setTempImageUrl(e.target.value)} placeholder="https://..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-gray-900 font-bold focus:border-blue-400 outline-none" />
                     <button type="button" onClick={addImageUrl} className="w-full sm:w-auto bg-blue-500 text-white px-6 py-3 rounded-xl font-black shadow-md hover:bg-blue-600 transition-colors">Додати</button>
                   </div>
+
+                  {/* Галерея мініатюр доданих фото */}
+                  {formData.images.length > 0 && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-4">
+                      {formData.images.map((img, idx) => (
+                        <div key={idx} className={`relative group rounded-xl overflow-hidden border-4 transition-all ${idx === 0 ? 'border-yellow-400 shadow-lg' : 'border-white shadow-sm hover:border-gray-200'}`}>
+                          <img src={img} alt={`Зображення ${idx + 1}`} className="w-full aspect-square object-cover" onError={(e) => e.currentTarget.src = DEFAULT_TOY_IMAGE} />
+                          
+                          {/* Кнопка видалення */}
+                          <button 
+                            type="button" 
+                            onClick={() => removeImage(idx)}
+                            className="absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center font-black shadow-md hover:bg-red-600 transition-colors z-10"
+                            title="Видалити це фото"
+                          >
+                            ✕
+                          </button>
+
+                          {/* Бейдж та кнопка вибору головного */}
+                          {idx === 0 ? (
+                            <div className="absolute bottom-0 left-0 right-0 bg-yellow-400/90 py-1 text-[8px] font-black text-gray-900 text-center uppercase tracking-tighter">
+                              Головне фото
+                            </div>
+                          ) : (
+                            <button 
+                              type="button" 
+                              onClick={() => setMainImage(idx)}
+                              className="absolute bottom-0 left-0 right-0 bg-black/60 py-1 text-[8px] font-black text-white text-center uppercase tracking-tighter opacity-0 group-hover:opacity-100 transition-opacity hover:bg-orange-500"
+                            >
+                              Зробити головним
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {formData.images.length === 0 && (
+                    <div className="text-center py-4 border-2 border-dashed border-gray-200 rounded-xl text-gray-400 text-sm font-bold">
+                      Фото поки не додано. Використовуйте поле вище.
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -462,6 +520,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex gap-3 sm:gap-4">
                       <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
                         <img src={toy.images[0] || DEFAULT_TOY_IMAGE} className="w-full h-full rounded-xl object-cover" onError={(e) => e.currentTarget.src = DEFAULT_TOY_IMAGE} />
+                        {/* Бейдж кількості фото для списку товарів */}
+                        {toy.images.length > 1 && (
+                          <div className="absolute bottom-1 right-1 bg-black/50 backdrop-blur-sm text-white text-[8px] px-1.5 py-0.5 rounded-md font-black shadow-sm flex items-center gap-1">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-2 w-2" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                            {toy.images.length}
+                          </div>
+                        )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
