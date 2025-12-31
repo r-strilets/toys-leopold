@@ -49,7 +49,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
   onSyncOrdersFromTelegram
 }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'settings'>('products');
-  const [inlineCategoryName, setInlineCategoryName] = useState(''); // Для швидкого додавання у формі товару
+  const [inlineCategoryName, setInlineCategoryName] = useState('');
   const [customSheetUrl, setCustomSheetUrl] = useState('');
   const [isSyncing, setIsSyncing] = useState(false);
   const [isTestingTg, setIsTestingTg] = useState(false);
@@ -126,15 +126,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
 
   const handleManualSync = async () => {
     setIsSyncing(true);
-    const success = await onSync(customSheetUrl.trim() || undefined);
-    setIsSyncing(false);
-    if (success) {
-      setNotification('Товари успішно завантажені! ✨');
-      setCustomSheetUrl('');
-    } else {
-      setNotification('Помилка завантаження.');
+    try {
+      const success = await onSync(customSheetUrl.trim() || undefined);
+      if (success) {
+        setNotification('Товари успішно завантажені! ✨');
+        setCustomSheetUrl('');
+      } else {
+        setNotification('Помилка завантаження.');
+      }
+    } catch (e) {
+      setNotification('Помилка мережі.');
+    } finally {
+      setIsSyncing(false);
+      setTimeout(() => setNotification(''), 5000);
     }
-    setTimeout(() => setNotification(''), 5000);
   };
 
   const handleExportCSV = () => {
@@ -176,12 +181,11 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
     setTimeout(() => setNotification(''), 5000);
   };
 
-  // Функція для швидкого додавання категорії прямо у формі товару
   const handleQuickAddCategory = () => {
     if (!inlineCategoryName.trim()) return;
     const catId = inlineCategoryName.toLowerCase().replace(/\s+/g, '-');
     onAddCategory(inlineCategoryName.trim());
-    setFormData(prev => ({ ...prev, category: catId })); // Відразу вибираємо нову
+    setFormData(prev => ({ ...prev, category: catId }));
     setInlineCategoryName('');
     setNotification('Нову категорію створено та обрано! 🏷️');
     setTimeout(() => setNotification(''), 3000);
@@ -332,7 +336,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     Імпортувати
                   </button>
                 </div>
-                <p className="mt-2 text-[10px] text-blue-200 font-bold italic">Примітка: Файл має бути опублікований як CSV у меню "Файл > Поділитися > Опублікувати в інтернеті"</p>
+                <p className="mt-2 text-[10px] text-blue-200 font-bold italic">Примітка: Файл має бути опублікований як CSV у меню "Файл &gt; Поділитися &gt; Опублікувати в інтернеті"</p>
               </div>
             </div>
           </div>
@@ -348,7 +352,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                   </div>
                 ))}
               </div>
-              <p className="mt-4 text-[10px] text-gray-400 font-bold uppercase italic text-center">Керуйте категоріями у формі товару вище 👆</p>
             </div>
           </div>
 
@@ -435,18 +438,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <input type="text" value={tempImageUrl} onChange={(e) => setTempImageUrl(e.target.value)} placeholder="https://..." className="flex-1 px-4 py-3 bg-white border-2 border-gray-100 rounded-xl text-gray-900 font-bold focus:border-blue-400 outline-none" />
                     <button type="button" onClick={addImageUrl} className="w-full sm:w-auto bg-blue-500 text-white px-6 py-3 rounded-xl font-black shadow-md hover:bg-blue-600 transition-colors">Додати</button>
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    {formData.images.map((img, idx) => (
-                      <div key={idx} className={`relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border-4 ${idx === 0 ? 'border-yellow-400 shadow-md' : 'border-white'}`}>
-                        <img src={img} className="w-full h-full object-cover" onError={(e) => e.currentTarget.src = DEFAULT_TOY_IMAGE} />
-                        <div className="absolute inset-0 bg-black/50 opacity-0 hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                          {idx !== 0 && <button type="button" onClick={() => setMainImage(idx)} className="text-white text-lg" title="Зробити головним">⭐</button>}
-                          <button type="button" onClick={() => removeImage(idx)} className="text-white text-lg" title="Видалити">✖</button>
-                        </div>
-                      </div>
-                    ))}
-                    {formData.images.length === 0 && <div className="text-gray-400 text-xs italic">Жодного фото не додано</div>}
-                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -463,9 +454,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                 <h2 className="text-xl sm:text-2xl font-black text-gray-900">Товари ({filteredToys.length})</h2>
                 <div className="relative w-full sm:w-auto">
                   <input type="text" value={searchTerm} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Пошук..." className="w-full px-4 py-2 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-gray-900 text-sm focus:border-orange-400" />
-                  <svg className="h-4 w-4 text-gray-400 absolute right-3 top-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                  </svg>
                 </div>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -474,7 +462,6 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                     <div className="flex gap-3 sm:gap-4">
                       <div className="relative w-16 h-16 sm:w-20 sm:h-20 flex-shrink-0">
                         <img src={toy.images[0] || DEFAULT_TOY_IMAGE} className="w-full h-full rounded-xl object-cover" onError={(e) => e.currentTarget.src = DEFAULT_TOY_IMAGE} />
-                        {toy.images.length > 1 && <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-[8px] px-1 rounded-md font-black">{toy.images.length}📸</span>}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex justify-between items-start">
@@ -485,24 +472,17 @@ const AdminPanel: React.FC<AdminPanelProps> = ({
                           </div>
                         </div>
                         <p className="text-orange-600 font-black text-xs sm:text-sm mt-1">{toy.discountPrice || toy.price} ₴</p>
-                        
-                        <div className="mt-2">
-                          <span className="inline-block text-[10px] uppercase font-black bg-gray-100 border border-gray-200 rounded-md px-2 py-1 text-gray-500">
-                            {categories.find(c => c.id === toy.category)?.name || toy.category}
-                          </span>
-                        </div>
                       </div>
                     </div>
                   </div>
                 ))}
-                {filteredToys.length === 0 && <div className="col-span-full py-10 text-center text-gray-400 font-bold italic">Товарів не знайдено</div>}
               </div>
               
               {totalPages > 1 && (
                 <div className="flex justify-center items-center gap-3 mt-8 pt-4 border-t border-gray-100">
-                   <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => Math.max(1, p-1))} className="p-2 rounded-xl bg-gray-100 disabled:opacity-30">◀</button>
+                   <button disabled={currentPage === 1} onClick={() => { setCurrentPage(prev => Math.max(1, prev - 1)); }} className="p-2 rounded-xl bg-gray-100 disabled:opacity-30">◀</button>
                    <span className="text-sm font-black text-gray-600">{currentPage} / {totalPages}</span>
-                   <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => Math.min(totalPages, p+1))} className="p-2 rounded-xl bg-gray-100 disabled:opacity-30">▶</button>
+                   <button disabled={currentPage === totalPages} onClick={() => { setCurrentPage(prev => Math.min(totalPages, prev + 1)); }} className="p-2 rounded-xl bg-gray-100 disabled:opacity-30">▶</button>
                 </div>
               )}
             </div>
